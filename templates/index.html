@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenVINO Translation - AI翻訳サービス</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="20" cy="20" r="18" fill="url(#gradient1)"/>
+                    <path d="M15 15 L25 20 L15 25 Z" fill="white"/>
+                    <defs>
+                        <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <h1>OpenVINO Translation</h1>
+            </div>
+            <p class="subtitle">AIを活用した高速翻訳サービス</p>
+        </header>
+
+        <main class="main-content">
+            <div class="translation-card">
+                <div class="language-selector">
+                    <div class="lang-option">
+                        <label for="source-lang">入力言語</label>
+                        <select id="source-lang" class="lang-select">
+                            <option value="auto">自動検出</option>
+                            {% for lang in languages %}
+                            <option value="{{ lang.code }}">{{ lang.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <button class="swap-btn" id="swap-langs" title="言語を入れ替え">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M7 16V4M7 4L3 8M7 4L11 8" />
+                            <path d="M17 8V20M17 20L21 16M17 20L13 16" />
+                        </svg>
+                    </button>
+                    
+                    <div class="lang-option">
+                        <label for="target-lang">翻訳先言語</label>
+                        <select id="target-lang" class="lang-select">
+                            {% for lang in languages %}
+                            <option value="{{ lang.code }}" {% if lang.code == 'ja' %}selected{% endif %}>{{ lang.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="text-areas">
+                    <div class="input-area">
+                        <textarea 
+                            id="source-text" 
+                            placeholder="翻訳したいテキストを入力してください..."
+                            rows="8"
+                        ></textarea>
+                        <div class="char-count">
+                            <span id="char-count">0</span> / 5000
+                        </div>
+                    </div>
+
+                    <div class="output-area">
+                        <div id="translation-result" class="result-text">
+                            翻訳結果がここに表示されます
+                        </div>
+                        <button class="copy-btn" id="copy-btn" title="コピー">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                            <span class="copy-text">コピー</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button class="btn btn-primary" id="translate-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                        翻訳する
+                    </button>
+                    <button class="btn btn-secondary" id="clear-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                        </svg>
+                        クリア
+                    </button>
+                </div>
+
+                <div id="loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <span>翻訳中...</span>
+                </div>
+
+                <div id="error-message" class="error-message hidden"></div>
+            </div>
+
+            <div class="api-docs">
+                <h2>📚 API ドキュメント</h2>
+                <div class="api-section">
+                    <h3>翻訳 API</h3>
+                    <code class="code-block">POST /api/translate</code>
+                    <pre class="code-example">{
+  "text": "Hello, world!",
+  "target_lang": "ja",
+  "source_lang": "en"  // オプション
+}</pre>
+                    <p>詳細なAPIドキュメント: <a href="/docs" target="_blank">/docs</a></p>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>Powered by OpenVINO™ | FastAPI | Helsinki-NLP Models</p>
+        </footer>
+    </div>
+
+    <script>
+        // DOM要素の取得
+        const sourceText = document.getElementById('source-text');
+        const translationResult = document.getElementById('translation-result');
+        const translateBtn = document.getElementById('translate-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const copyBtn = document.getElementById('copy-btn');
+        const swapBtn = document.getElementById('swap-langs');
+        const sourceLang = document.getElementById('source-lang');
+        const targetLang = document.getElementById('target-lang');
+        const charCount = document.getElementById('char-count');
+        const loading = document.getElementById('loading');
+        const errorMessage = document.getElementById('error-message');
+
+        // 文字数カウント
+        sourceText.addEventListener('input', () => {
+            const count = sourceText.value.length;
+            charCount.textContent = count;
+            
+            if (count > 5000) {
+                sourceText.value = sourceText.value.substring(0, 5000);
+                charCount.textContent = '5000';
+            }
+        });
+
+        // 翻訳実行
+        translateBtn.addEventListener('click', async () => {
+            const text = sourceText.value.trim();
+            
+            if (!text) {
+                showError('翻訳するテキストを入力してください');
+                return;
+            }
+
+            const sourceLangValue = sourceLang.value === 'auto' ? null : sourceLang.value;
+            const targetLangValue = targetLang.value;
+
+            if (sourceLangValue === targetLangValue) {
+                showError('入力言語と翻訳先言語が同じです');
+                return;
+            }
+
+            try {
+                loading.classList.remove('hidden');
+                errorMessage.classList.add('hidden');
+                translateBtn.disabled = true;
+
+                const response = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        target_lang: targetLangValue,
+                        source_lang: sourceLangValue
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || '翻訳に失敗しました');
+                }
+
+                const data = await response.json();
+                translationResult.textContent = data.translated_text;
+                translationResult.classList.add('has-content');
+                
+                if (data.via_english) {
+                    translationResult.textContent += '\n\n(英語経由で翻訳されました)';
+                }
+
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                loading.classList.add('hidden');
+                translateBtn.disabled = false;
+            }
+        });
+
+        // クリアボタン
+        clearBtn.addEventListener('click', () => {
+            sourceText.value = '';
+            translationResult.textContent = '翻訳結果がここに表示されます';
+            translationResult.classList.remove('has-content');
+            charCount.textContent = '0';
+            errorMessage.classList.add('hidden');
+        });
+
+        // コピーボタン
+        copyBtn.addEventListener('click', () => {
+            const text = translationResult.textContent;
+            if (text && text !== '翻訳結果がここに表示されます') {
+                navigator.clipboard.writeText(text).then(() => {
+                    const copyText = copyBtn.querySelector('.copy-text');
+                    copyText.textContent = 'コピーしました!';
+                    setTimeout(() => {
+                        copyText.textContent = 'コピー';
+                    }, 2000);
+                });
+            }
+        });
+
+        // 言語入れ替え
+        swapBtn.addEventListener('click', () => {
+            if (sourceLang.value === 'auto') return;
+            
+            const temp = sourceLang.value;
+            sourceLang.value = targetLang.value;
+            targetLang.value = temp;
+        });
+
+        // エラー表示
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+            setTimeout(() => {
+                errorMessage.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Enterキーで翻訳
+        sourceText.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                translateBtn.click();
+            }
+        });
+    </script>
+</body>
+</html>
