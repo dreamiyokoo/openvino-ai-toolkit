@@ -1,6 +1,7 @@
 """
 TranslationService のユニットテスト
 """
+
 import pytest
 from translation_service import TranslationService
 
@@ -24,7 +25,7 @@ def test_get_supported_languages(translation_service):
     assert len(languages) > 0
     assert all("code" in lang for lang in languages)
     assert all("name" in lang for lang in languages)
-    
+
     # 主要言語が含まれているか確認
     lang_codes = [lang["code"] for lang in languages]
     assert "en" in lang_codes
@@ -35,14 +36,14 @@ def test_detect_language(translation_service):
     """言語検出のテスト"""
     # 日本語
     assert translation_service._detect_language("こんにちは") == "ja"
-    
+
     # 中国語（簡体字） - 日本語の漢字と同じものは日本語として判定される可能性がある
     detected = translation_service._detect_language("你好")
     assert detected in ["zh", "ja"]  # どちらでも許容
-    
+
     # 韓国語
     assert translation_service._detect_language("안녕하세요") == "ko"
-    
+
     # 英語（デフォルト）
     assert translation_service._detect_language("Hello") == "en"
 
@@ -52,10 +53,10 @@ def test_get_model_name(translation_service):
     # 直接サポートされている言語ペア
     model_name = translation_service._get_model_name("en", "ja")
     assert model_name == "Helsinki-NLP/opus-mt-en-ja"
-    
+
     model_name = translation_service._get_model_name("ja", "en")
     assert model_name == "Helsinki-NLP/opus-mt-ja-en"
-    
+
     # サポートされていないペア
     model_name = translation_service._get_model_name("invalid", "lang")
     assert model_name is None
@@ -64,11 +65,9 @@ def test_get_model_name(translation_service):
 def test_same_language_translation(translation_service):
     """同じ言語への翻訳テスト"""
     result = translation_service.translate(
-        text="Hello",
-        target_lang="en",
-        source_lang="en"
+        text="Hello", target_lang="en", source_lang="en"
     )
-    
+
     assert result["translated_text"] == "Hello"
     assert result["source_lang"] == "en"
     assert result["target_lang"] == "en"
@@ -78,14 +77,12 @@ def test_same_language_translation(translation_service):
 def test_translation_result_structure(translation_service):
     """翻訳結果の構造テスト"""
     result = translation_service.translate(
-        text="Test",
-        target_lang="ja",
-        source_lang="en"
+        text="Test", target_lang="ja", source_lang="en"
     )
-    
+
     # 基本的なキーが存在するか確認（original_textは常に含まれる）
     assert "original_text" in result
-    
+
     # エラーがない場合は translated_text が含まれる
     # エラーがある場合は error が含まれる
     if "error" in result:
