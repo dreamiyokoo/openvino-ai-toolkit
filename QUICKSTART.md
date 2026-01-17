@@ -1,4 +1,4 @@
-# クイックスタートガイド - OpenVINO Translation & Chat API
+# クイックスタートガイド - OpenVINO AI Toolkit
 
 ## 1. 依存パッケージのインストール
 

@@ -295,7 +295,7 @@ class ChatService:
         elif "天気" in user_message or "weather" in user_message:
             return "申し訳ありませんが、私は天気情報にアクセスできません。お近くの気象情報をご確認ください。"
         elif "名前" in user_message or "name" in user_message:
-            return "私はOpenVINO Translation & Chat APIのアシスタントです。"
+            return "私はOpenVINO AI Toolkitのアシスタントです。"
         elif "?" in user_message or "？" in user_message:
             return f"「{user_message[:50]}」についてのご質問ですね。申し訳ありませんが、現在はモックモードで動作しているため、詳細な回答は提供できません。"
         else:
