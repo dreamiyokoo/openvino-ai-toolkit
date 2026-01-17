@@ -29,8 +29,6 @@ class TranslationService:
             ("en", "ja"): "Helsinki-NLP/opus-mt-en-ja",
             ("en", "zh"): "Helsinki-NLP/opus-mt-en-zh",
             ("zh", "en"): "Helsinki-NLP/opus-mt-zh-en",
-            ("en", "ko"): "Helsinki-NLP/opus-mt-en-ko",
-            ("ko", "en"): "Helsinki-NLP/opus-mt-ko-en",
             ("en", "fr"): "Helsinki-NLP/opus-mt-en-fr",
             ("fr", "en"): "Helsinki-NLP/opus-mt-fr-en",
             ("en", "de"): "Helsinki-NLP/opus-mt-en-de",
@@ -39,8 +37,6 @@ class TranslationService:
             ("es", "en"): "Helsinki-NLP/opus-mt-es-en",
             ("en", "ru"): "Helsinki-NLP/opus-mt-en-ru",
             ("ru", "en"): "Helsinki-NLP/opus-mt-ru-en",
-            ("en", "th"): "Helsinki-NLP/opus-mt-en-th",
-            ("th", "en"): "Helsinki-NLP/opus-mt-th-en",
         }
 
         # 直接のペアがない場合は、英語を経由
@@ -62,9 +58,7 @@ class TranslationService:
             if not model_path.exists():
                 logger.info("Exporting model to OpenVINO format...")
                 # PyTorchモデルをOpenVINO形式にエクスポート
-                model = OVModelForSeq2SeqLM.from_pretrained(
-                    model_name, export=True, compile=True
-                )
+                model = OVModelForSeq2SeqLM.from_pretrained(model_name, export=True, compile=True)
                 model.save_pretrained(model_path)
             else:
                 logger.info("Loading cached OpenVINO model...")
@@ -72,9 +66,7 @@ class TranslationService:
 
             tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-            translator = pipeline(
-                "translation", model=model, tokenizer=tokenizer, device="cpu"
-            )
+            translator = pipeline("translation", model=model, tokenizer=tokenizer, device="cpu")
 
             self.loaded_models[model_name] = translator
             logger.info(f"Model loaded successfully: {model_name}")
@@ -84,9 +76,7 @@ class TranslationService:
             logger.error(f"Error loading model {model_name}: {e}")
             raise
 
-    def translate(
-        self, text: str, target_lang: str, source_lang: Optional[str] = None
-    ) -> dict:
+    def translate(self, text: str, target_lang: str, source_lang: Optional[str] = None) -> dict:
         """
         テキストを翻訳
 
@@ -163,22 +153,11 @@ class TranslationService:
         実際のプロダクションでは、より高度な言語検出ライブラリを使用することを推奨
         """
         # 日本語文字を含む場合
-        if any(
-            "\u3040" <= char <= "\u309f"
-            or "\u30a0" <= char <= "\u30ff"
-            or "\u4e00" <= char <= "\u9fff"
-            for char in text
-        ):
+        if any("\u3040" <= char <= "\u309f" or "\u30a0" <= char <= "\u30ff" or "\u4e00" <= char <= "\u9fff" for char in text):
             return "ja"
         # 中国語文字を含む場合
         elif any("\u4e00" <= char <= "\u9fff" for char in text):
             return "zh"
-        # 韓国語文字を含む場合
-        elif any("\uac00" <= char <= "\ud7a3" for char in text):
-            return "ko"
-        # タイ語文字を含む場合
-        elif any("\u0e00" <= char <= "\u0e7f" for char in text):
-            return "th"
         # デフォルトは英語
         else:
             return "en"
@@ -189,10 +168,8 @@ class TranslationService:
             {"code": "en", "name": "English"},
             {"code": "ja", "name": "Japanese (日本語)"},
             {"code": "zh", "name": "Chinese (中文)"},
-            {"code": "ko", "name": "Korean (한국어)"},
             {"code": "fr", "name": "French (Français)"},
             {"code": "de", "name": "German (Deutsch)"},
             {"code": "es", "name": "Spanish (Español)"},
             {"code": "ru", "name": "Russian (Русский)"},
-            {"code": "th", "name": "Thai (ไทย)"},
         ]

@@ -22,7 +22,7 @@ def test_translation_service_init(translation_service):
 def test_get_supported_languages(translation_service):
     """サポート言語リストの取得テスト"""
     languages = translation_service.get_supported_languages()
-    assert len(languages) == 9  # Updated to 9 languages including Thai
+    assert len(languages) == 7  # Updated to 7 languages (removed Korean and Thai)
     assert all("code" in lang for lang in languages)
     assert all("name" in lang for lang in languages)
 
@@ -30,7 +30,11 @@ def test_get_supported_languages(translation_service):
     lang_codes = [lang["code"] for lang in languages]
     assert "en" in lang_codes
     assert "ja" in lang_codes
-    assert "th" in lang_codes  # Check Thai language is included
+    assert "zh" in lang_codes
+    assert "fr" in lang_codes
+    assert "de" in lang_codes
+    assert "es" in lang_codes
+    assert "ru" in lang_codes
 
 
 def test_detect_language(translation_service):
@@ -41,12 +45,6 @@ def test_detect_language(translation_service):
     # 中国語（簡体字） - 日本語の漢字と同じものは日本語として判定される可能性がある
     detected = translation_service._detect_language("你好")
     assert detected in ["zh", "ja"]  # どちらでも許容
-
-    # 韓国語
-    assert translation_service._detect_language("안녕하세요") == "ko"
-
-    # タイ語
-    assert translation_service._detect_language("สวัสดี") == "th"
 
     # 英語（デフォルト）
     assert translation_service._detect_language("Hello") == "en"
@@ -68,9 +66,7 @@ def test_get_model_name(translation_service):
 
 def test_same_language_translation(translation_service):
     """同じ言語への翻訳テスト"""
-    result = translation_service.translate(
-        text="Hello", target_lang="en", source_lang="en"
-    )
+    result = translation_service.translate(text="Hello", target_lang="en", source_lang="en")
 
     assert result["translated_text"] == "Hello"
     assert result["source_lang"] == "en"
@@ -80,9 +76,7 @@ def test_same_language_translation(translation_service):
 
 def test_translation_result_structure(translation_service):
     """翻訳結果の構造テスト"""
-    result = translation_service.translate(
-        text="Test", target_lang="ja", source_lang="en"
-    )
+    result = translation_service.translate(text="Test", target_lang="ja", source_lang="en")
 
     # 基本的なキーが存在するか確認（original_textは常に含まれる）
     assert "original_text" in result

@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "FastAPI: OpenVINO Translation",
+            "name": "FastAPI: Translation & Chat API (Dev)",
             "type": "debugpy",
             "request": "launch",
             "module": "uvicorn",
@@ -24,7 +24,7 @@
             }
         },
         {
-            "name": "FastAPI: Production Mode",
+            "name": "FastAPI: Translation & Chat API (Production)",
             "type": "debugpy",
             "request": "launch",
             "module": "uvicorn",
@@ -90,6 +90,64 @@
                 "-s",
                 "${file}"
             ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Pytest: Translation Tests Only",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "-v",
+                "-s",
+                "tests/test_translation_service.py"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Pytest: Chat Tests Only",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "-v",
+                "-s",
+                "tests/test_chat_service.py"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: Chat Service Demo",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/chat_service.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "python": "${workspaceFolder}/venv/bin/python",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "Python: LangChain Adapter Demo",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/langchain_adapter.py",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
             "python": "${workspaceFolder}/venv/bin/python",

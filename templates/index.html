@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenVINO Translation - AI翻訳サービス</title>
+    <title>OpenVINO AI Toolkit - AI翻訳＆チャットサービス</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -20,14 +20,35 @@
                         </linearGradient>
                     </defs>
                 </svg>
-                <h1>OpenVINO Translation</h1>
+                <h1>OpenVINO AI Toolkit</h1>
             </div>
-            <p class="subtitle">AIを活用した高速翻訳サービス</p>
+            <p class="subtitle">AIを活用した高速翻訳＆チャットサービス</p>
         </header>
 
+        <!-- タブナビゲーション -->
+        <div class="tab-navigation" role="tablist" aria-label="機能選択">
+            <button class="tab-btn active" data-tab="translation" role="tab"
+                    aria-selected="true" aria-controls="translation-tab" id="tab-translation">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+                翻訳
+            </button>
+            <button class="tab-btn" data-tab="chat" role="tab"
+                    aria-selected="false" aria-controls="chat-tab" id="tab-chat">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                </svg>
+                チャット
+            </button>
+        </div>
+
         <main class="main-content">
-            <div class="translation-card">
-                <div class="language-selector">
+            <!-- 翻訳タブコンテンツ -->
+            <div class="tab-content active" id="translation-tab" role="tabpanel"
+                 aria-labelledby="tab-translation">
+                <div class="translation-card">
+                    <div class="language-selector">
                     <div class="lang-option">
                         <label for="source-lang">入力言語</label>
                         <select id="source-lang" class="lang-select">
@@ -37,14 +58,14 @@
                             {% endfor %}
                         </select>
                     </div>
-                    
+
                     <button class="swap-btn" id="swap-langs" title="言語を入れ替え">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M7 16V4M7 4L3 8M7 4L11 8" />
                             <path d="M17 8V20M17 20L21 16M17 20L13 16" />
                         </svg>
                     </button>
-                    
+
                     <div class="lang-option">
                         <label for="target-lang">翻訳先言語</label>
                         <select id="target-lang" class="lang-select">
@@ -57,8 +78,8 @@
 
                 <div class="text-areas">
                     <div class="input-area">
-                        <textarea 
-                            id="source-text" 
+                        <textarea
+                            id="source-text"
                             placeholder="翻訳したいテキストを入力してください..."
                             rows="8"
                         ></textarea>
@@ -102,21 +123,74 @@
                 </div>
 
                 <div id="error-message" class="error-message hidden"></div>
-            </div>
+                </div>
 
-            <div class="api-docs">
-                <h2>📚 API ドキュメント</h2>
-                <div class="api-section">
-                    <h3>翻訳 API</h3>
-                    <code class="code-block">POST /api/translate</code>
-                    <pre class="code-example">{
-  "text": "Hello, world!",
-  "target_lang": "ja",
-  "source_lang": "en"  // オプション
-}</pre>
-                    <p>詳細なAPIドキュメント: <a href="/docs" target="_blank">/docs</a></p>
+                <div style="margin-top: 1.5rem; text-align: center; padding: 0.5rem;">
+                    <small style="color: rgba(255, 255, 255, 0.6);">
+                        📚 <a href="/docs" target="_blank" style="color: rgba(255, 255, 255, 0.8); text-decoration: none;">APIドキュメント</a>
+                    </small>
                 </div>
             </div>
+            <!-- 翻訳タブコンテンツ終了 -->
+
+            <!-- チャットタブコンテンツ -->
+            <div class="tab-content" id="chat-tab" role="tabpanel"
+                 aria-labelledby="tab-chat">
+                <div class="chat-card">
+                    <div class="chat-header">
+                        <h2>💬 AIチャット</h2>
+                        <div class="chat-controls">
+                            <div class="model-selector">
+                                <label for="chat-model">モデル:</label>
+                                <select id="chat-model" class="model-select">
+                                    <option value="">読み込み中...</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-secondary" id="clear-chat-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                                </svg>
+                                履歴クリア
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="welcome-message">
+                            <p>👋 こんにちは！何かお手伝いできることはありますか？</p>
+                            <p class="model-info" id="current-model-info"></p>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-area">
+                        <div class="chat-input-wrapper">
+                            <textarea
+                                id="chat-input"
+                                placeholder="メッセージを入力してください..."
+                                rows="2"
+                            ></textarea>
+                            <button class="btn btn-primary" id="send-chat-btn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                                </svg>
+                                送信
+                            </button>
+                        </div>
+                        <div id="chat-loading" class="loading hidden">
+                            <div class="spinner"></div>
+                            <span>応答を生成中...</span>
+                        </div>
+                        <div id="chat-error-message" class="error-message hidden"></div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem; text-align: center; padding: 0.5rem;">
+                    <small style="color: rgba(255, 255, 255, 0.6);">
+                        📚 <a href="/docs" target="_blank" style="color: rgba(255, 255, 255, 0.8); text-decoration: none;">APIドキュメント</a>
+                    </small>
+                </div>
+            </div>
+            <!-- チャットタブコンテンツ終了 -->
         </main>
 
         <footer class="footer">
@@ -125,6 +199,60 @@
     </div>
 
     <script>
+        // ========== タブ切り替え機能 ==========
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        function switchTab(tabName) {
+            // すべてのタブボタンとコンテンツから active クラスを削除
+            tabButtons.forEach(btn => {
+                btn.classList.remove('active');
+                btn.setAttribute('aria-selected', 'false');
+            });
+            tabContents.forEach(content => content.classList.remove('active'));
+
+            // 指定されたタブをアクティブに
+            const activeButton = document.querySelector(`[data-tab="${tabName}"]`);
+            if (activeButton) {
+                activeButton.classList.add('active');
+                activeButton.setAttribute('aria-selected', 'true');
+                document.getElementById(`${tabName}-tab`).classList.add('active');
+            }
+        }
+
+        tabButtons.forEach((button, index) => {
+            button.addEventListener('click', () => {
+                const tabName = button.getAttribute('data-tab');
+                switchTab(tabName);
+            });
+
+            // キーボードナビゲーション
+            button.addEventListener('keydown', (e) => {
+                let newIndex = index;
+
+                if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    newIndex = index > 0 ? index - 1 : tabButtons.length - 1;
+                } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    newIndex = index < tabButtons.length - 1 ? index + 1 : 0;
+                } else if (e.key === 'Home') {
+                    e.preventDefault();
+                    newIndex = 0;
+                } else if (e.key === 'End') {
+                    e.preventDefault();
+                    newIndex = tabButtons.length - 1;
+                }
+
+                if (newIndex !== index) {
+                    tabButtons[newIndex].focus();
+                    const tabName = tabButtons[newIndex].getAttribute('data-tab');
+                    switchTab(tabName);
+                }
+            });
+        });
+
+        // ========== 翻訳機能 ==========
         // DOM要素の取得
         const sourceText = document.getElementById('source-text');
         const translationResult = document.getElementById('translation-result');
@@ -142,7 +270,7 @@
         sourceText.addEventListener('input', () => {
             const count = sourceText.value.length;
             charCount.textContent = count;
-            
+
             if (count > 5000) {
                 sourceText.value = sourceText.value.substring(0, 5000);
                 charCount.textContent = '5000';
@@ -152,7 +280,7 @@
         // 翻訳実行
         translateBtn.addEventListener('click', async () => {
             const text = sourceText.value.trim();
-            
+
             if (!text) {
                 showError('翻訳するテキストを入力してください');
                 return;
@@ -191,7 +319,7 @@
                 const data = await response.json();
                 translationResult.textContent = data.translated_text;
                 translationResult.classList.add('has-content');
-                
+
                 if (data.via_english) {
                     translationResult.textContent += '\n\n(英語経由で翻訳されました)';
                 }
@@ -230,7 +358,7 @@
         // 言語入れ替え
         swapBtn.addEventListener('click', () => {
             if (sourceLang.value === 'auto') return;
-            
+
             const temp = sourceLang.value;
             sourceLang.value = targetLang.value;
             targetLang.value = temp;
@@ -251,6 +379,205 @@
                 translateBtn.click();
             }
         });
+
+        // ========== チャット機能 ==========
+        const chatInput = document.getElementById('chat-input');
+        const sendChatBtn = document.getElementById('send-chat-btn');
+        const clearChatBtn = document.getElementById('clear-chat-btn');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatLoading = document.getElementById('chat-loading');
+        const chatErrorMessage = document.getElementById('chat-error-message');
+        const chatModelSelect = document.getElementById('chat-model');
+        const currentModelInfo = document.getElementById('current-model-info');
+
+        let currentSessionId = null;
+        let availableModels = [];
+
+        // モデル一覧を取得
+        async function loadAvailableModels() {
+            try {
+                const response = await fetch('/api/chat/models');
+                if (!response.ok) {
+                    throw new Error('モデル一覧の取得に失敗しました');
+                }
+
+                const data = await response.json();
+                availableModels = data.models;
+
+                // ドロップダウンを更新
+                chatModelSelect.innerHTML = '';
+                availableModels.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.key;
+                    option.textContent = `${model.name} (${model.size})`;
+                    if (model.is_default) {
+                        option.selected = true;
+                    }
+                    chatModelSelect.appendChild(option);
+                });
+
+                // 現在のモデル情報を表示
+                updateModelInfo();
+
+            } catch (error) {
+                console.error('モデル読み込みエラー:', error);
+                chatModelSelect.innerHTML = '<option value="">エラー: モデルを読み込めません</option>';
+            }
+        }
+
+        // モデル情報を更新
+        function updateModelInfo() {
+            const selectedKey = chatModelSelect.value;
+            const model = availableModels.find(m => m.key === selectedKey);
+            if (model) {
+                currentModelInfo.textContent = `使用中: ${model.name} - ${model.description}`;
+            }
+        }
+
+        // モデル選択時の処理
+        chatModelSelect.addEventListener('change', () => {
+            updateModelInfo();
+            // モデルを変更した場合、セッションをリセット
+            currentSessionId = null;
+        });
+
+        // ページ読み込み時にモデル一覧を取得
+        loadAvailableModels();
+
+        // メッセージを表示エリアに追加
+        function addMessage(content, role) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${role}-message`;
+
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+            // XSS対策: textContentを使用してHTMLをエスケープ
+            // チャットメッセージはプレーンテキストのみ対応（HTML/Markdownは無効）
+            bubbleDiv.textContent = content;
+
+            messageDiv.appendChild(bubbleDiv);
+            chatMessages.appendChild(messageDiv);
+
+            // スクロールを最下部に（DOMの更新を待つ）
+            requestAnimationFrame(() => {
+                messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            });
+        }
+
+        // チャットエラー表示
+        function showChatError(message) {
+            chatErrorMessage.textContent = message;
+            chatErrorMessage.classList.remove('hidden');
+            setTimeout(() => {
+                chatErrorMessage.classList.add('hidden');
+            }, 5000);
+        }
+
+        // チャットメッセージ送信
+        async function sendChatMessage() {
+            const message = chatInput.value.trim();
+
+            if (!message) {
+                showChatError('メッセージを入力してください');
+                return;
+            }
+
+            // ユーザーメッセージを表示
+            addMessage(message, 'user');
+            chatInput.value = '';
+
+            try {
+                chatLoading.classList.remove('hidden');
+                chatErrorMessage.classList.add('hidden');
+                sendChatBtn.disabled = true;
+
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        session_id: currentSessionId,
+                        model: chatModelSelect.value,
+                        system_prompt: "あなたは親切で役立つAIアシスタントです。"
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'チャット送信に失敗しました');
+                }
+
+                const data = await response.json();
+
+                // セッションIDを保存
+                currentSessionId = data.session_id;
+
+                // アシスタントの応答を表示
+                addMessage(data.response, 'assistant');
+
+            } catch (error) {
+                showChatError(error.message);
+            } finally {
+                chatLoading.classList.add('hidden');
+                sendChatBtn.disabled = false;
+                chatInput.focus();
+            }
+        }
+
+        // 送信ボタンクリック
+        sendChatBtn.addEventListener('click', sendChatMessage);
+
+        // Enterキーで送信（Shift+Enterで改行）
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+
+        // 履歴クリアボタン
+        clearChatBtn.addEventListener('click', async () => {
+            if (!currentSessionId) {
+                // ローカルのメッセージのみクリア
+                clearChatMessages();
+                return;
+            }
+
+            if (!confirm('会話履歴をクリアしますか？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/chat/history/${currentSessionId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    clearChatMessages();
+                    currentSessionId = null;
+                }
+            } catch (error) {
+                showChatError('履歴のクリアに失敗しました');
+            }
+        });
+
+        // チャットメッセージをクリアする関数
+        function clearChatMessages() {
+            // 既存のメッセージをすべて削除
+            while (chatMessages.firstChild) {
+                chatMessages.removeChild(chatMessages.firstChild);
+            }
+
+            // ウェルカムメッセージを追加
+            const welcomeDiv = document.createElement('div');
+            welcomeDiv.className = 'welcome-message';
+            const welcomeP = document.createElement('p');
+            welcomeP.textContent = '👋 こんにちは！何かお手伝いできることはありますか？';
+            welcomeDiv.appendChild(welcomeP);
+            chatMessages.appendChild(welcomeDiv);
+        }
     </script>
 </body>
 </html>
