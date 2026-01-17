@@ -47,8 +47,8 @@
             <!-- 翻訳タブコンテンツ -->
             <div class="tab-content active" id="translation-tab" role="tabpanel"
                  aria-labelledby="tab-translation">
-            <div class="translation-card">
-                <div class="language-selector">
+                <div class="translation-card">
+                    <div class="language-selector">
                     <div class="lang-option">
                         <label for="source-lang">入力言語</label>
                         <select id="source-lang" class="lang-select">
@@ -123,21 +123,13 @@
                 </div>
 
                 <div id="error-message" class="error-message hidden"></div>
-            </div>
-
-            <div class="api-docs">
-                <h2>📚 API ドキュメント</h2>
-                <div class="api-section">
-                    <h3>翻訳 API</h3>
-                    <code class="code-block">POST /api/translate</code>
-                    <pre class="code-example">{
-  "text": "Hello, world!",
-  "target_lang": "ja",
-  "source_lang": "en"  // オプション
-}</pre>
-                    <p>詳細なAPIドキュメント: <a href="/docs" target="_blank">/docs</a></p>
                 </div>
-            </div>
+                
+                <div style="margin-top: 1.5rem; text-align: center; padding: 0.5rem;">
+                    <small style="color: rgba(255, 255, 255, 0.6);">
+                        📚 <a href="/docs" target="_blank" style="color: rgba(255, 255, 255, 0.8); text-decoration: none;">APIドキュメント</a>
+                    </small>
+                </div>
             </div>
             <!-- 翻訳タブコンテンツ終了 -->
 
@@ -147,17 +139,26 @@
                 <div class="chat-card">
                     <div class="chat-header">
                         <h2>💬 AIチャット</h2>
-                        <button class="btn btn-secondary" id="clear-chat-btn">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-                            </svg>
-                            履歴クリア
-                        </button>
+                        <div class="chat-controls">
+                            <div class="model-selector">
+                                <label for="chat-model">モデル:</label>
+                                <select id="chat-model" class="model-select">
+                                    <option value="">読み込み中...</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-secondary" id="clear-chat-btn">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                                </svg>
+                                履歴クリア
+                            </button>
+                        </div>
                     </div>
 
                     <div class="chat-messages" id="chat-messages">
                         <div class="welcome-message">
                             <p>👋 こんにちは！何かお手伝いできることはありますか？</p>
+                            <p class="model-info" id="current-model-info"></p>
                         </div>
                     </div>
 
@@ -182,19 +183,11 @@
                         <div id="chat-error-message" class="error-message hidden"></div>
                     </div>
                 </div>
-
-                <div class="api-docs">
-                    <h2>📚 Chat API ドキュメント</h2>
-                    <div class="api-section">
-                        <h3>チャット API</h3>
-                        <code class="code-block">POST /api/chat</code>
-                        <pre class="code-example">{
-  "message": "こんにちは",
-  "session_id": "optional-session-id",
-  "system_prompt": "あなたは親切なアシスタントです"
-}</pre>
-                        <p>詳細なAPIドキュメント: <a href="/docs" target="_blank">/docs</a></p>
-                    </div>
+                
+                <div style="margin-top: 1.5rem; text-align: center; padding: 0.5rem;">
+                    <small style="color: rgba(255, 255, 255, 0.6);">
+                        📚 <a href="/docs" target="_blank" style="color: rgba(255, 255, 255, 0.8); text-decoration: none;">APIドキュメント</a>
+                    </small>
                 </div>
             </div>
             <!-- チャットタブコンテンツ終了 -->
@@ -394,8 +387,62 @@
         const chatMessages = document.getElementById('chat-messages');
         const chatLoading = document.getElementById('chat-loading');
         const chatErrorMessage = document.getElementById('chat-error-message');
+        const chatModelSelect = document.getElementById('chat-model');
+        const currentModelInfo = document.getElementById('current-model-info');
 
         let currentSessionId = null;
+        let availableModels = [];
+
+        // モデル一覧を取得
+        async function loadAvailableModels() {
+            try {
+                const response = await fetch('/api/chat/models');
+                if (!response.ok) {
+                    throw new Error('モデル一覧の取得に失敗しました');
+                }
+                
+                const data = await response.json();
+                availableModels = data.models;
+                
+                // ドロップダウンを更新
+                chatModelSelect.innerHTML = '';
+                availableModels.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.key;
+                    option.textContent = `${model.name} (${model.size})`;
+                    if (model.is_default) {
+                        option.selected = true;
+                    }
+                    chatModelSelect.appendChild(option);
+                });
+                
+                // 現在のモデル情報を表示
+                updateModelInfo();
+                
+            } catch (error) {
+                console.error('モデル読み込みエラー:', error);
+                chatModelSelect.innerHTML = '<option value="">エラー: モデルを読み込めません</option>';
+            }
+        }
+
+        // モデル情報を更新
+        function updateModelInfo() {
+            const selectedKey = chatModelSelect.value;
+            const model = availableModels.find(m => m.key === selectedKey);
+            if (model) {
+                currentModelInfo.textContent = `使用中: ${model.name} - ${model.description}`;
+            }
+        }
+
+        // モデル選択時の処理
+        chatModelSelect.addEventListener('change', () => {
+            updateModelInfo();
+            // モデルを変更した場合、セッションをリセット
+            currentSessionId = null;
+        });
+
+        // ページ読み込み時にモデル一覧を取得
+        loadAvailableModels();
 
         // メッセージを表示エリアに追加
         function addMessage(content, role) {
@@ -411,8 +458,10 @@
             messageDiv.appendChild(bubbleDiv);
             chatMessages.appendChild(messageDiv);
 
-            // スクロールを最下部に
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            // スクロールを最下部に（DOMの更新を待つ）
+            requestAnimationFrame(() => {
+                messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            });
         }
 
         // チャットエラー表示
@@ -450,6 +499,7 @@
                     body: JSON.stringify({
                         message: message,
                         session_id: currentSessionId,
+                        model: chatModelSelect.value,
                         system_prompt: "あなたは親切で役立つAIアシスタントです。"
                     })
                 });

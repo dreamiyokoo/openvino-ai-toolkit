@@ -1,11 +1,11 @@
-# OpenVINO Translation & Chat API
+# OpenVINO AI Toolkit
 
-OpenVINOを使った高速AI翻訳WebサービスとチャットAPI
+OpenVINOを使ったAI翻訳&チャットWebサービス
 
 ## 🚀 特徴
 
 - **OpenVINO最適化**: Intel OpenVINOによる高速推論
-- **多言語翻訳対応**: 英語、日本語、中国語、韓国語、フランス語、ドイツ語、スペイン語、ロシア語、タイ語
+- **多言語翻訳対応**: 英語、日本語、中国語、フランス語、ドイツ語、スペイン語、ロシア語
 - **AIチャット機能**: OpenVINO対応の軽量LLMを使用したチャット機能
 - **統合UI**: 翻訳とチャットを切り替えられるタブインターフェース
 - **自動言語検出**: 入力言語を自動で検出
@@ -141,17 +141,15 @@ GET /api/health
 | en | English (英語) |
 | ja | Japanese (日本語) |
 | zh | Chinese (中国語) |
-| ko | Korean (韓国語) |
 | fr | French (フランス語) |
 | de | German (ドイツ語) |
 | es | Spanish (スペイン語) |
 | ru | Russian (ロシア語) |
-| th | Thai (タイ語) |
 
 ## 📁 プロジェクト構造
 
 ```
-open-vino-trunslate-api/
+openvino-ai-toolkit/
 ├── main.py                    # FastAPIアプリケーション（翻訳＋チャット）
 ├── translation_service.py     # OpenVINO翻訳サービス
 ├── chat_service.py            # OpenVINOチャットサービス（新規）

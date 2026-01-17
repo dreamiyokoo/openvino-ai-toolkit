@@ -1,5 +1,5 @@
 """
-OpenVINO翻訳API - FastAPIアプリケーション
+OpenVINO AI Toolkit - FastAPIアプリケーション
 """
 
 import threading
@@ -13,13 +13,14 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from translation_service import TranslationService
 from chat_service import ChatService
+import config
 
 logger = logging.getLogger(__name__)
 
 # FastAPIアプリケーションの初期化
 app = FastAPI(
-    title="OpenVINO Translation & Chat API",
-    description="OpenVINOを使った高速翻訳APIとチャット機能を提供するWebサービス",
+    title="OpenVINO AI Toolkit",
+    description="OpenVINOを使った高速AI翻訳とチャット機能を提供するWebサービス",
     version="2.0.0",
 )
 
@@ -44,7 +45,12 @@ def get_chat_service():
         with chat_service_lock:
             # ダブルチェックロッキングパターン
             if chat_service is None:
-                chat_service = ChatService()
+                # デフォルトモデルを config から取得
+                default_model_key = config.DEFAULT_CHAT_MODEL
+                model_name = config.get_model_name(default_model_key)
+
+                chat_service = ChatService(model_name=model_name, use_mock=False, **config.CHAT_CONFIG)
+                logger.info(f"Chat service initialized with model: {model_name}")
 
     return chat_service
 
@@ -78,6 +84,7 @@ class TranslationResponse(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
+    model: Optional[str] = None
     system_prompt: Optional[str] = None
     use_langchain: Optional[bool] = False
     translate_to: Optional[str] = None
@@ -87,6 +94,7 @@ class ChatRequest(BaseModel):
             "example": {
                 "message": "こんにちは",
                 "session_id": "optional-session-id",
+                "model": "tinyllama",
                 "system_prompt": "あなたは親切なアシスタントです",
                 "use_langchain": False,
                 "translate_to": "en",
@@ -167,7 +175,7 @@ async def chat(request: ChatRequest):
     - **message**: ユーザーメッセージ
     - **session_id**: セッションID (オプション、指定しない場合は新規作成)
     - **system_prompt**: システムプロンプト (オプション)
-    - **use_langchain**: LangChainを使用するか (現在未実装、将来の拡張用として予約)
+    - **model**: 使用するモデル (オプション、例: "tinyllama", "japanese-gpt-neox")
     - **translate_to**: 応答を翻訳する言語コード (オプション)
     """
     # メッセージの検証
@@ -181,11 +189,20 @@ async def chat(request: ChatRequest):
 
     service = get_chat_service()
 
+    # モデル名の解決（キーからHugging Face名へ）
+    model_name = None
+    if request.model:
+        try:
+            model_name = config.get_model_name(request.model)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+
     # チャット応答を生成
     result = service.chat(
         message=request.message.strip(),
         session_id=request.session_id,
         system_prompt=request.system_prompt,
+        model_name=model_name,
     )
 
     if "error" in result:
@@ -245,6 +262,50 @@ async def delete_chat_history(session_id: str):
         raise HTTPException(status_code=404, detail=result["error"])
 
     return result
+
+
+@app.get("/api/chat/models")
+async def get_available_models():
+    """
+    利用可能なチャットモデルの一覧を取得
+
+    Ollamaライクなモデル管理機能
+    """
+    models = config.list_available_models()
+
+    # 現在ロードされているモデルの情報を追加
+    service = get_chat_service()
+    loaded_models = service.get_loaded_models()
+
+    for model in models:
+        model["loaded"] = model["name"] in loaded_models
+
+    return {
+        "models": models,
+        "default": config.DEFAULT_CHAT_MODEL,
+        "loaded_count": len(loaded_models),
+    }
+
+
+@app.get("/api/chat/models/{model_key}")
+async def get_model_info(model_key: str):
+    """
+    特定のモデルの詳細情報を取得
+
+    - **model_key**: モデルのキー (例: "tinyllama", "japanese-gpt-neox")
+    """
+    try:
+        info = config.get_model_info(model_key)
+        service = get_chat_service()
+        loaded = info["name"] in service.get_loaded_models()
+
+        return {
+            "key": model_key,
+            **info,
+            "loaded": loaded,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @app.get("/api/chat/sessions")

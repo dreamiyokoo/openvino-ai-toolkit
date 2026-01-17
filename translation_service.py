@@ -29,8 +29,6 @@ class TranslationService:
             ("en", "ja"): "Helsinki-NLP/opus-mt-en-ja",
             ("en", "zh"): "Helsinki-NLP/opus-mt-en-zh",
             ("zh", "en"): "Helsinki-NLP/opus-mt-zh-en",
-            ("en", "ko"): "Helsinki-NLP/opus-mt-en-ko",
-            ("ko", "en"): "Helsinki-NLP/opus-mt-ko-en",
             ("en", "fr"): "Helsinki-NLP/opus-mt-en-fr",
             ("fr", "en"): "Helsinki-NLP/opus-mt-fr-en",
             ("en", "de"): "Helsinki-NLP/opus-mt-en-de",
@@ -39,8 +37,6 @@ class TranslationService:
             ("es", "en"): "Helsinki-NLP/opus-mt-es-en",
             ("en", "ru"): "Helsinki-NLP/opus-mt-en-ru",
             ("ru", "en"): "Helsinki-NLP/opus-mt-ru-en",
-            ("en", "th"): "Helsinki-NLP/opus-mt-en-th",
-            ("th", "en"): "Helsinki-NLP/opus-mt-th-en",
         }
 
         # 直接のペアがない場合は、英語を経由
@@ -162,12 +158,6 @@ class TranslationService:
         # 中国語文字を含む場合
         elif any("\u4e00" <= char <= "\u9fff" for char in text):
             return "zh"
-        # 韓国語文字を含む場合
-        elif any("\uac00" <= char <= "\ud7a3" for char in text):
-            return "ko"
-        # タイ語文字を含む場合
-        elif any("\u0e00" <= char <= "\u0e7f" for char in text):
-            return "th"
         # デフォルトは英語
         else:
             return "en"
@@ -178,10 +168,8 @@ class TranslationService:
             {"code": "en", "name": "English"},
             {"code": "ja", "name": "Japanese (日本語)"},
             {"code": "zh", "name": "Chinese (中文)"},
-            {"code": "ko", "name": "Korean (한국어)"},
             {"code": "fr", "name": "French (Français)"},
             {"code": "de", "name": "German (Deutsch)"},
             {"code": "es", "name": "Spanish (Español)"},
             {"code": "ru", "name": "Russian (Русский)"},
-            {"code": "th", "name": "Thai (ไทย)"},
         ]
