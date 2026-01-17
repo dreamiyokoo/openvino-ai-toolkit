@@ -10,8 +10,7 @@ import logging
 import uuid
 
 from optimum.intel import OVModelForCausalLM
-from transformers import AutoTokenizer, TextIteratorStreamer
-import threading
+from transformers import AutoTokenizer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

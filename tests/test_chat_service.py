@@ -4,6 +4,7 @@
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
+from chat_service import ChatService
 
 
 class TestChatService:
@@ -13,7 +14,6 @@ class TestChatService:
     @patch("chat_service.AutoTokenizer")
     def test_chat_service_initialization(self, mock_tokenizer, mock_model):
         """チャットサービスの初期化テスト"""
-        from chat_service import ChatService
 
         # モックの設定
         mock_model.from_pretrained = MagicMock()
@@ -32,7 +32,6 @@ class TestChatService:
     @patch("chat_service.AutoTokenizer")
     def test_chat_creates_new_session(self, mock_tokenizer, mock_model):
         """新規セッションの作成テスト"""
-        from chat_service import ChatService
 
         # モックの設定
         mock_model_instance = MagicMock()
@@ -66,7 +65,6 @@ class TestChatService:
     @patch("chat_service.AutoTokenizer")
     def test_chat_reuses_existing_session(self, mock_tokenizer, mock_model):
         """既存セッションの再利用テスト"""
-        from chat_service import ChatService
 
         # モックの設定
         mock_model_instance = MagicMock()
@@ -103,7 +101,6 @@ class TestChatService:
     @patch("chat_service.AutoTokenizer")
     def test_get_history(self, mock_tokenizer, mock_model):
         """履歴取得のテスト"""
-        from chat_service import ChatService
 
         # モックの設定
         mock_model_instance = MagicMock()
@@ -144,7 +141,6 @@ class TestChatService:
     @patch("chat_service.AutoTokenizer")
     def test_get_history_not_found(self, mock_tokenizer, mock_model):
         """存在しないセッションの履歴取得テスト"""
-        from chat_service import ChatService
 
         # モックの設定
         mock_model_instance = MagicMock()
@@ -166,7 +162,6 @@ class TestChatService:
     @patch("chat_service.AutoTokenizer")
     def test_delete_history(self, mock_tokenizer, mock_model):
         """履歴削除のテスト"""
-        from chat_service import ChatService
 
         # モックの設定
         mock_model_instance = MagicMock()
@@ -199,7 +194,6 @@ class TestChatService:
     @patch("chat_service.AutoTokenizer")
     def test_list_sessions(self, mock_tokenizer, mock_model):
         """セッション一覧のテスト"""
-        from chat_service import ChatService
 
         # モックの設定
         mock_model_instance = MagicMock()

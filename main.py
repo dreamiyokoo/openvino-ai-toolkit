@@ -26,15 +26,26 @@ templates = Jinja2Templates(directory="templates")
 # 翻訳サービスの初期化
 translation_service = TranslationService()
 
-# チャットサービスの初期化（遅延ロード）
+# チャットサービスの初期化（遅延ロード、スレッドセーフ）
 chat_service = None
+chat_service_lock = None
 
 
 def get_chat_service():
-    """チャットサービスのインスタンスを取得（遅延ロード）"""
-    global chat_service
+    """チャットサービスのインスタンスを取得（遅延ロード、スレッドセーフ）"""
+    global chat_service, chat_service_lock
+    
+    # ロックの初期化（最初の呼び出し時のみ）
+    if chat_service_lock is None:
+        import threading
+        chat_service_lock = threading.Lock()
+    
     if chat_service is None:
-        chat_service = ChatService()
+        with chat_service_lock:
+            # ダブルチェックロッキングパターン
+            if chat_service is None:
+                chat_service = ChatService()
+    
     return chat_service
 
 
