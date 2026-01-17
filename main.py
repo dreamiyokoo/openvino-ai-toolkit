@@ -194,7 +194,6 @@ async def chat(request: ChatRequest):
 
     # 翻訳が要求された場合
     translated_response = None
-    translation_error = None
     if request.translate_to:
         try:
             translation_result = translation_service.translate(
@@ -205,10 +204,8 @@ async def chat(request: ChatRequest):
             if "error" not in translation_result:
                 translated_response = translation_result["translated_text"]
             else:
-                translation_error = translation_result["error"]
-                logger.warning(f"Translation failed: {translation_error}")
+                logger.warning(f"Translation failed: {translation_result['error']}")
         except Exception as e:
-            translation_error = str(e)
             logger.error(f"Translation error: {e}")
 
     return ChatResponse(
