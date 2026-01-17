@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OpenVINO Translation - AI翻訳サービス</title>
+    <title>OpenVINO Translation & Chat - AI翻訳＆チャットサービス</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -20,12 +20,30 @@
                         </linearGradient>
                     </defs>
                 </svg>
-                <h1>OpenVINO Translation</h1>
+                <h1>OpenVINO Translation & Chat</h1>
             </div>
-            <p class="subtitle">AIを活用した高速翻訳サービス</p>
+            <p class="subtitle">AIを活用した高速翻訳＆チャットサービス</p>
         </header>
 
+        <!-- タブナビゲーション -->
+        <div class="tab-navigation">
+            <button class="tab-btn active" data-tab="translation">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+                翻訳
+            </button>
+            <button class="tab-btn" data-tab="chat">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                </svg>
+                チャット
+            </button>
+        </div>
+
         <main class="main-content">
+            <!-- 翻訳タブコンテンツ -->
+            <div class="tab-content active" id="translation-tab">
             <div class="translation-card">
                 <div class="language-selector">
                     <div class="lang-option">
@@ -117,6 +135,65 @@
                     <p>詳細なAPIドキュメント: <a href="/docs" target="_blank">/docs</a></p>
                 </div>
             </div>
+            </div>
+            <!-- 翻訳タブコンテンツ終了 -->
+
+            <!-- チャットタブコンテンツ -->
+            <div class="tab-content" id="chat-tab">
+                <div class="chat-card">
+                    <div class="chat-header">
+                        <h2>💬 AIチャット</h2>
+                        <button class="btn btn-secondary" id="clear-chat-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                            </svg>
+                            履歴クリア
+                        </button>
+                    </div>
+
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="welcome-message">
+                            <p>👋 こんにちは！何かお手伝いできることはありますか？</p>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-area">
+                        <div class="chat-input-wrapper">
+                            <textarea 
+                                id="chat-input" 
+                                placeholder="メッセージを入力してください..."
+                                rows="2"
+                            ></textarea>
+                            <button class="btn btn-primary" id="send-chat-btn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                                </svg>
+                                送信
+                            </button>
+                        </div>
+                        <div id="chat-loading" class="loading hidden">
+                            <div class="spinner"></div>
+                            <span>応答を生成中...</span>
+                        </div>
+                        <div id="chat-error-message" class="error-message hidden"></div>
+                    </div>
+                </div>
+
+                <div class="api-docs">
+                    <h2>📚 Chat API ドキュメント</h2>
+                    <div class="api-section">
+                        <h3>チャット API</h3>
+                        <code class="code-block">POST /api/chat</code>
+                        <pre class="code-example">{
+  "message": "こんにちは",
+  "session_id": "optional-session-id",
+  "system_prompt": "あなたは親切なアシスタントです"
+}</pre>
+                        <p>詳細なAPIドキュメント: <a href="/docs" target="_blank">/docs</a></p>
+                    </div>
+                </div>
+            </div>
+            <!-- チャットタブコンテンツ終了 -->
         </main>
 
         <footer class="footer">
@@ -125,6 +202,25 @@
     </div>
 
     <script>
+        // ========== タブ切り替え機能 ==========
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const tabName = button.getAttribute('data-tab');
+                
+                // すべてのタブボタンとコンテンツから active クラスを削除
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                
+                // クリックされたタブをアクティブに
+                button.classList.add('active');
+                document.getElementById(`${tabName}-tab`).classList.add('active');
+            });
+        });
+
+        // ========== 翻訳機能 ==========
         // DOM要素の取得
         const sourceText = document.getElementById('source-text');
         const translationResult = document.getElementById('translation-result');
@@ -249,6 +345,130 @@
         sourceText.addEventListener('keydown', (e) => {
             if (e.ctrlKey && e.key === 'Enter') {
                 translateBtn.click();
+            }
+        });
+
+        // ========== チャット機能 ==========
+        const chatInput = document.getElementById('chat-input');
+        const sendChatBtn = document.getElementById('send-chat-btn');
+        const clearChatBtn = document.getElementById('clear-chat-btn');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatLoading = document.getElementById('chat-loading');
+        const chatErrorMessage = document.getElementById('chat-error-message');
+        
+        let currentSessionId = null;
+
+        // メッセージを表示エリアに追加
+        function addMessage(content, role) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${role}-message`;
+            
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+            bubbleDiv.textContent = content;
+            
+            messageDiv.appendChild(bubbleDiv);
+            chatMessages.appendChild(messageDiv);
+            
+            // スクロールを最下部に
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // チャットエラー表示
+        function showChatError(message) {
+            chatErrorMessage.textContent = message;
+            chatErrorMessage.classList.remove('hidden');
+            setTimeout(() => {
+                chatErrorMessage.classList.add('hidden');
+            }, 5000);
+        }
+
+        // チャットメッセージ送信
+        async function sendChatMessage() {
+            const message = chatInput.value.trim();
+            
+            if (!message) {
+                showChatError('メッセージを入力してください');
+                return;
+            }
+
+            // ユーザーメッセージを表示
+            addMessage(message, 'user');
+            chatInput.value = '';
+
+            try {
+                chatLoading.classList.remove('hidden');
+                chatErrorMessage.classList.add('hidden');
+                sendChatBtn.disabled = true;
+
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        session_id: currentSessionId,
+                        system_prompt: "あなたは親切で役立つAIアシスタントです。"
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'チャット送信に失敗しました');
+                }
+
+                const data = await response.json();
+                
+                // セッションIDを保存
+                currentSessionId = data.session_id;
+                
+                // アシスタントの応答を表示
+                addMessage(data.response, 'assistant');
+
+            } catch (error) {
+                showChatError(error.message);
+            } finally {
+                chatLoading.classList.add('hidden');
+                sendChatBtn.disabled = false;
+                chatInput.focus();
+            }
+        }
+
+        // 送信ボタンクリック
+        sendChatBtn.addEventListener('click', sendChatMessage);
+
+        // Enterキーで送信（Shift+Enterで改行）
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+
+        // 履歴クリアボタン
+        clearChatBtn.addEventListener('click', async () => {
+            if (!currentSessionId) {
+                // ローカルのメッセージのみクリア
+                chatMessages.innerHTML = '<div class="welcome-message"><p>👋 こんにちは！何かお手伝いできることはありますか？</p></div>';
+                return;
+            }
+
+            if (!confirm('会話履歴をクリアしますか？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/chat/history/${currentSessionId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    chatMessages.innerHTML = '<div class="welcome-message"><p>👋 こんにちは！何かお手伝いできることはありますか？</p></div>';
+                    currentSessionId = null;
+                }
+            } catch (error) {
+                showChatError('履歴のクリアに失敗しました');
             }
         });
     </script>
