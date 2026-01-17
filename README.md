@@ -313,3 +313,63 @@ GitHub Actionsによる自動テストとデプロイメントパイプライン
 - [OpenVINO](https://docs.openvino.ai/) - Intel AI推論最適化ツールキット
 - [Hugging Face Transformers](https://huggingface.co/transformers/) - 事前学習済みモデル
 - [Helsinki-NLP/OPUS-MT](https://huggingface.co/Helsinki-NLP) - 翻訳モデル
+- [TinyLlama](https://huggingface.co/TinyLlama) - 軽量チャット用LLM
+
+## 🔧 LangChain対応（オプション）
+
+このAPIはLangChainとの統合もサポートしています（オプション機能）。
+
+### インストール
+
+```bash
+pip install langchain
+```
+
+### 使用方法
+
+```python
+from langchain_adapter import create_langchain_chat
+
+# LangChain互換のチャットインスタンスを作成
+chat = create_langchain_chat(
+    model_name="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    system_prompt="あなたは親切なアシスタントです"
+)
+
+# チャットを実行
+response = chat("こんにちは！")
+print(response)
+
+# 履歴を取得
+history = chat.get_history()
+print(history)
+
+# 履歴をクリア
+chat.clear_history()
+```
+
+### LangChainとの統合
+
+```python
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
+from langchain_adapter import OpenVINOChatLangChain
+
+# OpenVINOチャットをLangChainで使用
+llm = OpenVINOChatLangChain()
+
+# PromptTemplateと組み合わせる
+template = "あなたは{role}です。質問: {question}"
+prompt = PromptTemplate(template=template, input_variables=["role", "question"])
+chain = LLMChain(llm=llm, prompt=prompt)
+
+# チェーンを実行
+result = chain.run(role="親切なアシスタント", question="こんにちは")
+print(result)
+```
+
+### API経由でのLangChain対応
+
+APIエンドポイントでは`use_langchain`パラメータを将来の拡張用に予約していますが、
+現在は内部実装はLangChainに依存せず、シンプルなPython実装で動作します。
+これにより、LangChainを使わないユーザーも軽量に利用できます。
