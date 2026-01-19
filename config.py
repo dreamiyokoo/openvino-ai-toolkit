@@ -8,24 +8,52 @@ from typing import Dict, List
 
 # 利用可能なチャットモデルの定義
 AVAILABLE_CHAT_MODELS: Dict[str, Dict] = {
+    "qwen2.5-7b": {
+        "name": "Qwen/Qwen2.5-7B-Instruct",
+        "description": "高性能な多言語チャットモデル (7B) - 日本語対応、最高精度",
+        "language": "multilingual",
+        "size": "7B",
+        "recommended": True,
+    },
+    "phi3-mini": {
+        "name": "microsoft/Phi-3-mini-4k-instruct",
+        "description": "マイクロソフトのコンパクト高性能モデル (3.8B) - 軽量で高速",
+        "language": "multilingual",
+        "size": "3.8B",
+        "recommended": False,
+    },
     "qwen2.5-1.5b": {
         "name": "Qwen/Qwen2.5-1.5B-Instruct",
-        "description": "多言語対応チャットモデル (1.5B) - 日本語対応、チャット専用",
+        "description": "多言語対応チャットモデル (1.5B) - 日本語対応、バランス型",
         "language": "multilingual",
         "size": "1.5B",
-        "recommended": True,
+        "recommended": False,
     },
     "qwen2.5-0.5b": {
         "name": "Qwen/Qwen2.5-0.5B-Instruct",
         "description": "超軽量多言語チャットモデル (0.5B) - 日本語対応、高速",
         "language": "multilingual",
         "size": "0.5B",
-        "recommended": True,
+        "recommended": False,
+    },
+    "tinyllama": {
+        "name": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+        "description": "軽量な英語チャットモデル (1.1B) - 高速、軽量",
+        "language": "english",
+        "size": "1.1B",
+        "recommended": False,
+    },
+    "rinna": {
+        "name": "rinna/japanese-gpt-neox-small",
+        "description": "日本語特化モデル (3.6B) - 日本語理解に特化",
+        "language": "japanese",
+        "size": "3.6B",
+        "recommended": False,
     },
 }
 
 # デフォルトのチャットモデル（環境変数で変更可能）
-DEFAULT_CHAT_MODEL = os.getenv("CHAT_MODEL", "qwen2.5-0.5b")
+DEFAULT_CHAT_MODEL = os.getenv("CHAT_MODEL", "qwen2.5-7b")
 
 # チャットサービスの設定
 CHAT_CONFIG = {

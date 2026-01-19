@@ -12,9 +12,65 @@ import threading
 
 from optimum.intel import OVModelForCausalLM
 from transformers import AutoTokenizer
+from prompt_improvement_engine import process_prompt_improvement_request, process_prompt_generation_request
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+# タスク固有のシステムプロンプトテンプレート
+TASK_PROMPTS = {
+    "image_prompt_improvement": """You are a professional image generation prompt editor.
+
+CRITICAL INSTRUCTIONS - MUST FOLLOW EXACTLY:
+1. The user will give you a prompt to improve
+2. Return ONLY the improved prompt text
+3. DO NOT provide explanations
+4. DO NOT provide reasons
+5. DO NOT provide headers
+6. Return ONLY the improved prompt
+7. Keep it to 1-2 sentences maximum
+8. Do not use markdown formatting
+9. Do not include bullet points
+10. Do not include any text other than the improved prompt
+
+REQUIREMENTS:
+- Use clear, concise language
+- Add visual details
+- Make it specific for image generation
+- Address any mentioned issues
+- Keep it natural and readable
+
+OUTPUT:
+The improved prompt text only. Just the text. 1-2 sentences. Nothing else. No explanations. No additional text.""",
+    "image_prompt_generation": """You are a professional image generation prompt writer.
+
+CRITICAL INSTRUCTIONS - MUST FOLLOW EXACTLY:
+1. The user will describe what image they want
+2. Create a professional image generation prompt
+3. Return ONLY the prompt text in Japanese
+4. DO NOT provide explanations
+5. DO NOT provide reasons
+6. Return ONLY the prompt
+7. Keep it to 1-2 sentences maximum
+8. Do not use markdown formatting
+9. Do not include bullet points
+10. Do not include any text other than the prompt
+
+REQUIREMENTS:
+- Use clear, concise Japanese language
+- Include specific visual details
+- Make it suitable for image generation AI
+- Be descriptive but concise
+- Include lighting, composition, style when relevant
+
+OUTPUT:
+The image prompt text only. Japanese only. 1-2 sentences. Nothing else.""",
+    "general": """You are a helpful and professional assistant.
+Answer user questions accurately and clearly.
+If you're unsure about something, say so.
+Use the user's language for responses.""",
+}
 
 
 class ChatService:
@@ -22,7 +78,7 @@ class ChatService:
 
     def __init__(
         self,
-        model_name: str = "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+        model_name: str = "Qwen/Qwen2.5-7B-Instruct",  # 7Bモデルが最も高性能
         cache_dir: str = "./models/chat_llm",
         max_history_messages: int = 20,
         session_timeout_minutes: int = 60,
@@ -109,6 +165,154 @@ class ChatService:
         with self.models_lock:
             return list(self.models.keys())
 
+    def _detect_task_type(self, message: str) -> str:
+        """
+        メッセージの内容からタスクタイプを検出
+
+        Args:
+            message: ユーザーメッセージ
+
+        Returns:
+            タスクタイプ（"image_prompt_improvement", "image_prompt_generation", "general" など）
+        """
+        message_lower = message.lower()
+
+        # 画像プロンプト生成の検出（「プロンプトを作成」「プロンプトを生成」など）
+        generation_keywords = ["プロンプト作成", "プロンプト生成", "プロンプトを作", "プロンプトを生", "プロンプト欲しい", "プロンプトください"]
+        if any(keyword in message_lower for keyword in generation_keywords):
+            return "image_prompt_generation"
+        if "create" in message_lower and "prompt" in message_lower:
+            return "image_prompt_generation"
+        if "generate" in message_lower and "prompt" in message_lower:
+            return "image_prompt_generation"
+
+        # 画像プロンプト改善の検出
+        if "改善したいプロンプト" in message or "改善" in message and "プロンプト" in message:
+            return "image_prompt_improvement"
+        if "prompt" in message_lower and "improve" in message_lower:
+            return "image_prompt_improvement"
+
+        return "general"
+
+    def _get_system_prompt_for_task(self, task_type: str, custom_prompt: Optional[str] = None, model_name: str = None) -> str:
+        """
+        タスクタイプに応じたシステムプロンプトを取得
+
+        Args:
+            task_type: タスクタイプ
+            custom_prompt: カスタムプロンプト（優先）
+            model_name: モデル名
+
+        Returns:
+            適切なシステムプロンプト
+        """
+        if custom_prompt:
+            return custom_prompt
+        return TASK_PROMPTS.get(task_type, TASK_PROMPTS["general"])
+
+    def _post_process_response(self, response: str, task_type: str = "general") -> str:
+        """
+        生成された応答を後処理してクリーンアップ
+
+        Args:
+            response: 生成された応答テキスト
+            task_type: タスクタイプ
+
+        Returns:
+            クリーンアップされた応答
+        """
+        # 画像プロンプト生成・改善タスク用の後処理
+        if task_type in ["image_prompt_improvement", "image_prompt_generation"]:
+            text = response.strip()
+
+            # 説明的な段落を検出・削除
+            explanation_markers = [
+                "しかし",
+                "ただし",
+                "ただ",
+                "ところで",
+                "つまり",
+                "注意",
+                "注：",
+                "注意：",
+                "備考",
+                "※",
+                "⚠",
+                "ご了承",
+                "可能性",
+                "可能",
+                "おそらく",
+                "と思われ",
+                "と考えられ",
+                "かもしれません",
+                "この改善",
+                "改善内容",
+                "改善点",
+                "理由",
+                "映像解像",
+                "光源",
+                "技術的",
+                "撮影",
+                "一部で",
+            ]
+
+            # 説明的な段落を分割
+            sentences = text.split("。")
+            result_sentences = []
+
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if not sentence:
+                    continue
+
+                # 説明的なマーカーがあればスキップ
+                if any(marker in sentence for marker in explanation_markers):
+                    continue
+
+                result_sentences.append(sentence)
+
+            # 最初の1-2文のみを使用
+            if result_sentences:
+                final_text = result_sentences[0]
+                if len(result_sentences) > 1 and len(final_text) < 50:
+                    final_text += "。" + result_sentences[1]
+                elif not final_text.endswith("。"):
+                    final_text += "。"
+
+                # 英語とローマ字の混在を日本語に統一
+                replacements = {
+                    "STUDIO": "スタジオ",
+                    "studio": "スタジオ",
+                    "studioo": "スタジオ",
+                    "スタUDIO": "スタジオ",
+                    " MIRROR": "鏡",
+                    "MIRROR": "鏡",
+                    "mirror": "鏡",
+                    " FLOOR": "床",
+                    "FLOOR": "床",
+                    "floor": "床",
+                    "フLOOR": "床",
+                    " LIGHTING": "照明",
+                    "LIGHTING": "照明",
+                    "lighting": "照明",
+                    "LIGHINING": "照明",
+                    " BARRE": "バー",
+                    "BARRE": "バー",
+                    "barre": "バー",
+                    "BAR": "バー",
+                    "bar": "バー",
+                    "PROFESSIONAL": "プロフェッショナル",
+                    "professional": "プロフェッショナル",
+                    "WIDE AREA": "広々とした空間",
+                    "DANCE CLASS": "ダンスクラス",
+                }
+                for eng, jp in replacements.items():
+                    final_text = final_text.replace(eng, jp)
+
+                return final_text.strip()
+
+        return response.strip()
+
     def _format_qwen_prompt(self, messages: List[Dict[str, str]], system_prompt: Optional[str] = None) -> str:
         """Qwen2.5のチャット形式にフォーマット"""
         formatted_parts = []
@@ -143,23 +347,45 @@ class ChatService:
         formatted_parts.append("<|assistant|>")
         return "\n".join(formatted_parts)
 
-    def _format_simple_prompt(self, messages: List[Dict[str, str]], system_prompt: Optional[str] = None) -> str:
-        """日本語モデル用のシンプルな形式にフォーマット"""
+    def _format_phi_prompt(self, messages: List[Dict[str, str]], system_prompt: Optional[str] = None) -> str:
+        """Phi用のシンプルなチャット形式"""
         formatted_parts = []
-        if system_prompt:
-            formatted_parts.append(f"指示: {system_prompt}")
 
-        # 会話履歴を追加（最後のいくつかのみ）
-        recent_messages = messages[-4:] if len(messages) > 4 else messages
-        for msg in recent_messages:
+        if system_prompt:
+            formatted_parts.append(f"<|system|>\n{system_prompt}<|end|>\n")
+
+        for msg in messages:
             role = msg["role"]
             content = msg["content"]
             if role == "user":
-                formatted_parts.append(f"質問: {content}")
+                formatted_parts.append(f"<|user|>\n{content}<|end|>\n")
             elif role == "assistant":
-                formatted_parts.append(f"回答: {content}")
+                formatted_parts.append(f"<|assistant|>\n{content}<|end|>\n")
 
-        formatted_parts.append("回答:")
+        formatted_parts.append("<|assistant|>\n")
+        return "".join(formatted_parts)
+
+    def _format_simple_prompt(self, messages: List[Dict[str, str]], system_prompt: Optional[str] = None) -> str:
+        """日本語モデル用の詳細な形式にフォーマット"""
+        formatted_parts = []
+
+        # システムプロンプトを最初に追加
+        if system_prompt:
+            formatted_parts.append(f"システム: {system_prompt}\n")
+
+        # 会話履歴を追加（最後の6メッセージまで）
+        recent_messages = messages[-6:] if len(messages) > 6 else messages
+
+        if len(recent_messages) > 0:
+            for msg in recent_messages:
+                role = msg["role"]
+                content = msg["content"]
+                if role == "user":
+                    formatted_parts.append(f"ユーザー: {content}")
+                elif role == "assistant":
+                    formatted_parts.append(f"アシスタント: {content}")
+
+        formatted_parts.append("\nアシスタント:")
         return "\n".join(formatted_parts)
 
     def _format_prompt(
@@ -167,6 +393,7 @@ class ChatService:
     ) -> str:
         """
         チャット履歴をプロンプト形式にフォーマット
+        モデルに応じた最適な形式を使用
 
         Args:
             messages: メッセージ履歴のリスト
@@ -176,14 +403,46 @@ class ChatService:
         Returns:
             フォーマットされたプロンプト文字列
         """
-        if model_name and "Qwen" in model_name:
+        if not model_name:
+            model_name = self.model_name
+
+        # モデルに応じたフォーマットを選択
+        if "Qwen" in model_name:
             return self._format_qwen_prompt(messages, system_prompt)
-        elif model_name and "TinyLlama" in model_name:
+        elif "Phi" in model_name or "phi" in model_name:
+            return self._format_phi_prompt(messages, system_prompt)
+        elif "TinyLlama" in model_name:
             return self._format_tinyllama_prompt(messages, system_prompt)
         else:
             return self._format_simple_prompt(messages, system_prompt)
 
-    def _generate_response(self, prompt: str, model_name: str, max_new_tokens: int = 256) -> str:
+    def _get_generation_params(self, model_name: str) -> Dict:
+        """モデルに応じた最適な生成パラメータを取得"""
+        # デフォルトパラメータ
+        params = {
+            "max_new_tokens": 100,
+            "temperature": 0.5,
+            "top_p": 0.85,
+            "top_k": 40,
+            "repetition_penalty": 1.5,
+            "no_repeat_ngram_size": 5,
+        }
+
+        # モデル固有の調整
+        if "Phi" in model_name or "phi" in model_name:
+            # Phiはより保守的なパラメータが良い
+            params["temperature"] = 0.3
+            params["top_p"] = 0.8
+            params["max_new_tokens"] = 80
+        elif "Qwen" in model_name:
+            # Qwen向け
+            params["temperature"] = 0.7
+            params["top_p"] = 0.85
+            params["max_new_tokens"] = 150
+
+        return params
+
+    def _generate_response(self, prompt: str, model_name: str, max_new_tokens: int = 256, task_type: str = "general") -> str:
         """
         LLMを使用して応答を生成
 
@@ -191,6 +450,7 @@ class ChatService:
             prompt: 入力プロンプト
             model_name: 使用するモデル名
             max_new_tokens: 生成する最大トークン数
+            task_type: タスクタイプ（後処理用）
 
         Returns:
             生成されたテキスト
@@ -214,16 +474,19 @@ class ChatService:
             # トークナイズ
             inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=2048)
 
+            # モデルに応じた生成パラメータを取得
+            gen_params = self._get_generation_params(model_name)
+
             # 生成パラメータの調整
             outputs = model.generate(
                 **inputs,
-                max_new_tokens=max_new_tokens,
+                max_new_tokens=gen_params["max_new_tokens"],
                 do_sample=True,
-                temperature=0.8,
-                top_p=0.95,
-                top_k=40,
-                repetition_penalty=1.2,
-                no_repeat_ngram_size=3,
+                temperature=gen_params["temperature"],
+                top_p=gen_params["top_p"],
+                top_k=gen_params["top_k"],
+                repetition_penalty=gen_params["repetition_penalty"],
+                no_repeat_ngram_size=gen_params["no_repeat_ngram_size"],
                 pad_token_id=tokenizer.pad_token_id,
                 eos_token_id=tokenizer.eos_token_id,
             )
@@ -246,11 +509,16 @@ class ChatService:
                 .replace("質問:", "")
                 .replace("回答:", "")
                 .replace("指示:", "")
+                .replace("【システムプロンプト】", "")
+                .replace("【会話履歴】", "")
+                .replace("【応答】", "")
+                .replace("ユーザー:", "")
+                .replace("アシスタント:", "")
                 .strip()
             )
 
             # 余分な生成を防ぐ - 次のターンが始まったら切り取る
-            for delimiter in ["\n<|im_start|>", "\n質問:", "\n回答:", "\n指示:"]:
+            for delimiter in ["\n<|im_start|>", "\n質問:", "\n回答:", "\n指示:", "\nユーザー:", "\nアシスタント:"]:
                 if delimiter in generated_text:
                     generated_text = generated_text.split(delimiter)[0].strip()
                     break
@@ -258,6 +526,9 @@ class ChatService:
             # 空の応答の場合のフォールバック
             if not generated_text:
                 generated_text = "申し訳ありませんが、応答を生成できませんでした。"
+
+            # タスク固有の後処理
+            generated_text = self._post_process_response(generated_text, task_type)
 
             logger.info(f"=== Final response ===\n{generated_text}\n=== End Final ===")
 
@@ -327,12 +598,62 @@ class ChatService:
                     del self.sessions[session_id]
                     logger.info(f"Removed old session due to limit: {session_id}")
 
+    def _get_or_create_session(
+        self,
+        session_id: Optional[str],
+        task_type: str,
+        system_prompt: Optional[str],
+        model_name: str,
+    ) -> tuple[str, Dict]:
+        """セッションを取得または新規作成"""
+        if session_id is None or session_id not in self.sessions:
+            session_id = str(uuid.uuid4())
+            final_system_prompt = self._get_system_prompt_for_task(task_type, system_prompt, model_name)
+            self.sessions[session_id] = {
+                "messages": [],
+                "system_prompt": final_system_prompt,
+                "model_name": model_name,
+                "task_type": task_type,
+                "created_at": datetime.now(),
+                "last_access": datetime.now(),
+            }
+        elif system_prompt:
+            self.sessions[session_id]["system_prompt"] = system_prompt
+            self.sessions[session_id]["task_type"] = task_type
+
+        if model_name:
+            self.sessions[session_id]["model_name"] = model_name
+
+        self.sessions[session_id]["last_access"] = datetime.now()
+        return session_id, self.sessions[session_id]
+
+    def _add_user_message(self, session: Dict, message: str) -> None:
+        """ユーザーメッセージをセッションに追加"""
+        user_message = {
+            "role": "user",
+            "content": message,
+            "timestamp": datetime.now().isoformat(),
+        }
+        session["messages"].append(user_message)
+
+        if len(session["messages"]) > self.max_history_messages * 2:
+            session["messages"] = session["messages"][-(self.max_history_messages * 2) :]
+
+    def _process_task_specific_response(self, response_text: str, task_type: str, message: str) -> str:
+        """タスク固有の後処理を実行"""
+        if task_type == "image_prompt_improvement":
+            return process_prompt_improvement_request(message, response_text)
+        elif task_type == "image_prompt_generation":
+            return process_prompt_generation_request(message, response_text)
+        return response_text
+
     def chat(
         self,
         message: str,
         session_id: Optional[str] = None,
         system_prompt: Optional[str] = None,
         model_name: Optional[str] = None,
+        task_type: Optional[str] = None,
     ) -> Dict:
         """
         チャットメッセージを処理して応答を生成
@@ -340,71 +661,32 @@ class ChatService:
         Args:
             message: ユーザーメッセージ
             session_id: セッションID（指定しない場合は新規作成）
-            system_prompt: システムプロンプト
+            system_prompt: システムプロンプト（優先）
             model_name: 使用するモデル名（指定しない場合はデフォルト）
+            task_type: タスクタイプ（自動検出される、明示的に指定も可）
 
         Returns:
             応答情報を含む辞書
         """
-        # モデル名のデフォルト設定
         if model_name is None:
             model_name = self.model_name
 
+        if task_type is None:
+            task_type = self._detect_task_type(message)
+
         try:
-            # 古いセッションをクリーンアップ
             self._cleanup_old_sessions()
 
             with self.sessions_lock:
-                # セッションIDの処理
-                if session_id is None or session_id not in self.sessions:
-                    session_id = str(uuid.uuid4())
-                    # デフォルトのシステムプロンプトを日本語に対応
-                    default_system_prompt = (
-                        system_prompt
-                        or "You are a helpful, respectful and honest assistant. Always answer as helpfully as possible."
-                    )
-                    self.sessions[session_id] = {
-                        "messages": [],
-                        "system_prompt": default_system_prompt,
-                        "model_name": model_name,  # セッションごとのモデルを記録
-                        "created_at": datetime.now(),
-                        "last_access": datetime.now(),
-                    }
-                elif system_prompt:
-                    # 既存セッションのシステムプロンプトを更新
-                    self.sessions[session_id]["system_prompt"] = system_prompt
-
-                # モデルが指定された場合、セッションのモデルを更新
-                if model_name:
-                    self.sessions[session_id]["model_name"] = model_name
-
-                # 最終アクセス時刻を更新
-                self.sessions[session_id]["last_access"] = datetime.now()
-
-                session = self.sessions[session_id]
+                session_id, session = self._get_or_create_session(session_id, task_type, system_prompt, model_name)
                 used_model = session["model_name"]
-
-                # ユーザーメッセージを追加
-                user_message = {
-                    "role": "user",
-                    "content": message,
-                    "timestamp": datetime.now().isoformat(),
-                }
-                session["messages"].append(user_message)
-
-                # メッセージ履歴を制限
-                if len(session["messages"]) > self.max_history_messages * 2:
-                    # 古いメッセージを削除（ペアで削除して会話の整合性を保つ）
-                    session["messages"] = session["messages"][-(self.max_history_messages * 2) :]
-
-                # プロンプトをフォーマット（ロック外で実行）
+                self._add_user_message(session, message)
                 prompt = self._format_prompt(session["messages"][:], session["system_prompt"], model_name=used_model)
 
-            # 応答を生成（ロック外で実行 - 時間がかかる処理）
-            response_text = self._generate_response(prompt, used_model)
+            response_text = self._generate_response(prompt, used_model, task_type=session.get("task_type", "general"))
+            response_text = self._process_task_specific_response(response_text, session.get("task_type"), message)
 
             with self.sessions_lock:
-                # アシスタントの応答を履歴に追加
                 assistant_message = {
                     "role": "assistant",
                     "content": response_text,
@@ -415,7 +697,7 @@ class ChatService:
             return {
                 "response": response_text,
                 "session_id": session_id,
-                "model": used_model,  # 使用したモデルを返す
+                "model": used_model,
                 "timestamp": assistant_message["timestamp"],
             }
 

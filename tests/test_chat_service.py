@@ -24,7 +24,7 @@ class TestChatService:
 
         service = ChatService()
 
-        assert service.model_name == "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+        assert service.model_name == "Qwen/Qwen2.5-7B-Instruct"  # 7Bモデル
         assert service.sessions == {}
 
     @patch("chat_service.OVModelForCausalLM")
@@ -208,3 +208,26 @@ class TestChatService:
 
         assert result["total"] == 2
         assert len(result["sessions"]) == 2
+
+    def test_task_type_detection(self):
+        """タスクタイプ検出のテスト"""
+        service = ChatService(use_mock=True)
+
+        # 画像プロンプト改善のテスト
+        assert service._detect_task_type("プロンプトを改善してください") == "image_prompt_improvement"
+        assert service._detect_task_type("画像生成プロンプトの改修") == "image_prompt_improvement"
+        assert service._detect_task_type("prompt を改善してください") == "image_prompt_improvement"
+
+        # 一般的なテストケース
+        assert service._detect_task_type("こんにちは") == "general"
+        assert service._detect_task_type("天気はどうですか？") == "general"
+
+    def test_system_prompt_for_image_improvement(self):
+        """画像プロンプト改善用のシステムプロンプトテスト"""
+        service = ChatService(use_mock=True)
+
+        prompt = service._get_system_prompt_for_task("image_prompt_improvement", None)
+
+        # 画像プロンプト改善タスク用の指示が含まれていることを確認
+        assert "プロンプト専門家" in prompt or "専門家" in prompt
+        assert "改善" in prompt or "Improve" in prompt
