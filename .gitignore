@@ -148,3 +148,4 @@ Thumbs.db
 htmlcov/
 coverage.xml
 .pytest_cache/
+run.sh
