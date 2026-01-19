@@ -118,6 +118,13 @@ class ChatHistoryResponse(BaseModel):
     created_at: Optional[str] = None
 
 
+# ヘルスチェック エンドポイント
+@app.get("/health")
+async def health():
+    """ヘルスチェック"""
+    return {"status": "healthy"}
+
+
 # ルートページ - Webインターフェース
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
